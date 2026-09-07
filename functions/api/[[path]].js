@@ -103,18 +103,32 @@ export async function onRequest(context) {
   if (path === '/' && request.method === 'GET') {
     const licenses = await redisGet(env, LICENSES_KEY) || {};
     const codes = await redisGet(env, CODES_KEY) || {};
-    const unusedCount = Object.values(codes).filter(c => c.status === 'unused').length;
-    let activatedCount = Object.values(codes).filter(c => c.status === 'activated').length;
-    const disabledCount = Object.values(codes).filter(c => c.status === 'disabled').length;
-    // 加上在 licenses 中但不在 codes 中的已激活激活码（确保统计完整）
-    let extraActivated = 0;
-    for (const [code, lic] of Object.entries(licenses)) {
-      if (!codes[code] && lic.deviceFingerprint) {
-        extraActivated++;
+
+    // 用 Set 统计所有已激活的激活码，避免重复或遗漏
+    // （同时从 codes 和 licenses 中统计，确保数据不同步时也能正确统计）
+    const activatedSet = new Set();
+    for (const [code, info] of Object.entries(codes)) {
+      if (info.status === 'activated') {
+        activatedSet.add(code);
       }
     }
-    activatedCount += extraActivated;
-    const totalCodes = Object.keys(codes).length + extraActivated;
+    for (const [code, lic] of Object.entries(licenses)) {
+      if (lic.deviceFingerprint) {
+        activatedSet.add(code);
+      }
+    }
+    const activatedCount = activatedSet.size;
+
+    const unusedCount = Object.values(codes).filter(c => c.status === 'unused').length;
+    const disabledCount = Object.values(codes).filter(c => c.status === 'disabled').length;
+
+    // 总激活码数：codes 中的数量 + 在 licenses 中但不在 codes 中的数量
+    const allCodesSet = new Set(Object.keys(codes));
+    for (const code of Object.keys(licenses)) {
+      allCodesSet.add(code);
+    }
+    const totalCodes = allCodesSet.size;
+
     return jsonResponse({
       ok: true,
       msg: '橙果漫剧授权服务器运行中（Cloudflare Pages Functions 版）',
