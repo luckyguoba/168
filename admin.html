@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>橙果漫剧 - 激活码管理后台</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .container {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  .header {
+    text-align: center;
+    color: #fff;
+    margin-bottom: 30px;
+  }
+  .header h1 { font-size: 28px; margin-bottom: 8px; }
+  .header p { font-size: 14px; opacity: 0.9; }
+  .tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .tab {
+    padding: 12px 24px;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s;
+  }
+  .tab:hover { background: rgba(255,255,255,0.3); }
+  .tab.active { background: #fff; color: #667eea; }
+  .panel {
+    background: #fff;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    display: none;
+  }
+  .panel.active { display: block; }
+  .form-group { margin-bottom: 20px; }
+  label {
+    display: block;
+    color: #555;
+    margin-bottom: 8px;
+    font-weight: 600;
+    font-size: 14px;
+  }
+  input, select, textarea {
+    width: 100%;
+    padding: 12px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: #667eea;
+  }
+  textarea { resize: vertical; min-height: 120px; font-family: monospace; }
+  .row { display: flex; gap: 15px; }
+  .row .form-group { flex: 1; }
+  .btn-group { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+  button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4); }
+  .btn-success { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); color: #fff; }
+  .btn-success:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(67, 233, 123, 0.4); }
+  .btn-warning { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #fff; }
+  .btn-warning:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(250, 112, 154, 0.4); }
+  .btn-danger { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; }
+  .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(245, 87, 108, 0.4); }
+  .btn-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
+  .btn-info:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(79, 172, 254, 0.4); }
+  .result {
+    margin-top: 20px;
+    padding: 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    display: none;
+  }
+  .result.show { display: block; }
+  .result.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+  .result.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+  .result.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+  .result pre {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(0,0,0,0.05);
+    border-radius: 4px;
+    font-size: 12px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  .stat-card {
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+  }
+  .stat-value { font-size: 28px; font-weight: 700; color: #333; }
+  .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 15px;
+    font-size: 13px;
+  }
+  th, td {
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+  }
+  th { background: #f8f9fa; font-weight: 600; color: #555; }
+  tr:hover { background: #f8f9fa; }
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+  .badge-unused { background: #d1ecf1; color: #0c5460; }
+  .badge-activated { background: #d4edda; color: #155724; }
+  .badge-disabled { background: #f8d7da; color: #721c24; }
+  .pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .pagination button {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+  .pagination span { font-size: 14px; color: #666; }
+  .file-upload {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  .file-upload:hover { border-color: #667eea; background: #f8f9ff; }
+  .file-upload p { color: #888; font-size: 14px; }
+  .loading {
+    text-align: center;
+    color: #888;
+    margin-top: 15px;
+    display: none;
+  }
+  .loading::after { content: '...'; animation: dots 1.5s steps(4, end) infinite; }
+  @keyframes dots {
+    0%, 20% { content: '.'; }
+    40% { content: '..'; }
+    60%, 100% { content: '...'; }
+  }
+  .footer {
+    text-align: center;
+    margin-top: 30px;
+    color: rgba(255,255,255,0.7);
+    font-size: 12px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🍊 橙果漫剧</h1>
+    <p>激活码管理后台 v2.0 - 预导入严格管理版</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard')">📊 数据概览</button>
+    <button class="tab" onclick="switchTab('import')">📥 批量导入</button>
+    <button class="tab" onclick="switchTab('list')">📋 激活码列表</button>
+    <button class="tab" onclick="switchTab('single')">🔍 单个操作</button>
+  </div>
+
+  <!-- 数据概览 -->
+  <div class="panel active" id="panel-dashboard">
+    <div class="stats" id="stats">
+      <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">总激活码</div></div>
+      <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">未激活</div></div>
+      <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">已激活</div></div>
+      <div class="stat-card"><div class="stat-value">-</div><div class="stat-label">已禁用</div></div>
+    </div>
+    <div class="btn-group">
+      <button class="btn-primary" onclick="loadStats()">🔄 刷新数据</button>
+    </div>
+  </div>
+
+  <!-- 批量导入 -->
+  <div class="panel" id="panel-import">
+    <div class="form-group">
+      <label>服务器地址</label>
+      <input type="text" id="serverUrl" value="/api">
+    </div>
+    <div class="form-group">
+      <label>管理密码</label>
+      <input type="password" id="adminPassword" value="orange-admin-2026">
+    </div>
+    <div class="form-group">
+      <label>粘贴激活码（每行一个，或直接粘贴JSON）</label>
+      <textarea id="importCodes" placeholder="FGMM-M-0001-XXXX&#10;FGMM-M-0002-XXXX&#10;..."></textarea>
+    </div>
+    <div class="form-group">
+      <label>或上传 JSON 文件（从激活码生成器导出）</label>
+      <div class="file-upload" onclick="document.getElementById('fileInput').click()">
+        <p>📁 点击选择 JSON 文件，或拖拽到此处</p>
+        <input type="file" id="fileInput" accept=".json" style="display:none" onchange="handleFile(event)">
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn-success" onclick="importCodes()">📥 开始导入</button>
+      <button class="btn-info" onclick="clearImport()">🗑️ 清空</button>
+    </div>
+    <div class="loading" id="importLoading">正在导入</div>
+    <div class="result" id="importResult"></div>
+  </div>
+
+  <!-- 激活码列表 -->
+  <div class="panel" id="panel-list">
+    <div class="row">
+      <div class="form-group">
+        <label>筛选状态</label>
+        <select id="filterStatus" onchange="loadCodes(1)">
+          <option value="">全部</option>
+          <option value="unused">未激活</option>
+          <option value="activated">已激活</option>
+          <option value="disabled">已禁用</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>每页数量</label>
+        <select id="pageSize" onchange="loadCodes(1)">
+          <option value="20">20条/页</option>
+          <option value="50" selected>50条/页</option>
+          <option value="100">100条/页</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-group">
+      <button class="btn-primary" onclick="loadCodes(1)">🔄 刷新列表</button>
+    </div>
+    <div class="loading" id="listLoading">正在加载</div>
+    <div id="listContainer"></div>
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <!-- 单个操作 -->
+  <div class="panel" id="panel-single">
+    <div class="form-group">
+      <label>服务器地址</label>
+      <input type="text" id="serverUrl2" value="/api">
+    </div>
+    <div class="form-group">
+      <label>管理密码</label>
+      <input type="password" id="adminPassword2" value="orange-admin-2026">
+    </div>
+    <div class="form-group">
+      <label>激活码</label>
+      <input type="text" id="singleCode" placeholder="例如：FGMM-M-0001-E8D1">
+    </div>
+    <div class="btn-group">
+      <button class="btn-info" onclick="queryCode()">🔍 查询状态</button>
+      <button class="btn-warning" onclick="unbindCode()">🔓 解绑（保留剩余时间）</button>
+      <button class="btn-danger" onclick="disableCode()">🚫 禁用</button>
+      <button class="btn-success" onclick="enableCode()">✅ 启用</button>
+    </div>
+    <div class="loading" id="singleLoading">正在处理</div>
+    <div class="result" id="singleResult"></div>
+  </div>
+
+  <div class="footer">
+    橙果漫剧影视播放器 - 激活码管理后台 v2.0
+  </div>
+</div>
+
+<script>
+let currentPage = 1;
+let totalPages = 1;
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('panel-' + tab).classList.add('active');
+  if (tab === 'dashboard') loadStats();
+  if (tab === 'list') loadCodes(1);
+}
+
+function showResult(id, type, message, data) {
+  const el = document.getElementById(id);
+  el.className = 'result ' + type + ' show';
+  el.innerHTML = '<strong>' + message + '</strong>';
+  if (data) el.innerHTML += '<pre>' + JSON.stringify(data, null, 2) + '</pre>';
+}
+
+function showLoading(id, show) {
+  document.getElementById(id).style.display = show ? 'block' : 'none';
+}
+
+// ========== 数据概览 ==========
+async function loadStats() {
+  const serverUrl = document.getElementById('serverUrl') ? document.getElementById('serverUrl').value.trim().replace(/\/$/, '') : '/api';
+  try {
+    const res = await fetch(serverUrl + '/');
+    const data = await res.json();
+    if (data.stats) {
+      const stats = document.querySelectorAll('#stats .stat-value');
+      stats[0].textContent = data.stats.totalCodes;
+      stats[1].textContent = data.stats.unused;
+      stats[2].textContent = data.stats.activated;
+      stats[3].textContent = data.stats.disabled;
+    }
+  } catch (e) {
+    alert('加载失败：' + e.message);
+  }
+}
+
+// ========== 批量导入 ==========
+function handleFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.codes && Array.isArray(data.codes)) {
+        document.getElementById('importCodes').value = data.codes.join('\n');
+      } else {
+        alert('JSON 格式不正确，需要包含 codes 数组');
+      }
+    } catch (err) {
+      alert('文件解析失败：' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+async function importCodes() {
+  const serverUrl = document.getElementById('serverUrl').value.trim().replace(/\/$/, '');
+  const password = document.getElementById('adminPassword').value;
+  const text = document.getElementById('importCodes').value.trim();
+
+  if (!text) {
+    alert('请输入激活码或上传文件');
+    return;
+  }
+
+  let codes = [];
+  try {
+    const data = JSON.parse(text);
+    if (data.codes && Array.isArray(data.codes)) {
+      codes = data.codes;
+    } else {
+      alert('JSON 格式不正确，需要包含 codes 数组');
+      return;
+    }
+  } catch (e) {
+    codes = text.split('\n').map(c => c.trim()).filter(c => c);
+  }
+
+  if (codes.length === 0) {
+    alert('没有有效的激活码');
+    return;
+  }
+
+  showLoading('importLoading', true);
+  showResult('importResult', 'info', `正在导入 ${codes.length} 个激活码...`);
+
+  try {
+    const res = await fetch(serverUrl + '/admin/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ codes, password })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showResult('importResult', 'success', data.msg, data.stats);
+      loadStats();
+    } else {
+      showResult('importResult', 'error', data.msg || '导入失败', data);
+    }
+  } catch (e) {
+    showResult('importResult', 'error', '网络错误：' + e.message);
+  } finally {
+    showLoading('importLoading', false);
+  }
+}
+
+function clearImport() {
+  document.getElementById('importCodes').value = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('importResult').classList.remove('show');
+}
+
+// ========== 激活码列表 ==========
+async function loadCodes(page) {
+  currentPage = page;
+  const serverUrl = document.getElementById('serverUrl') ? document.getElementById('serverUrl').value.trim().replace(/\/$/, '') : '/api';
+  const password = document.getElementById('adminPassword') ? document.getElementById('adminPassword').value : 'orange-admin-2026';
+  const status = document.getElementById('filterStatus').value;
+  const pageSize = document.getElementById('pageSize').value;
+
+  showLoading('listLoading', true);
+  document.getElementById('listContainer').innerHTML = '';
+  document.getElementById('pagination').innerHTML = '';
+
+  try {
+    let url = `${serverUrl}/admin/codes?password=${encodeURIComponent(password)}&page=${page}&pageSize=${pageSize}`;
+    if (status) url += `&status=${status}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.ok && data.codes) {
+      totalPages = data.totalPages;
+      let html = '<table><thead><tr><th>激活码</th><th>类型</th><th>状态</th><th>创建时间</th><th>操作</th></tr></thead><tbody>';
+      for (const code of data.codes) {
+        const statusBadge = code.status === 'unused' ? '<span class="badge badge-unused">未激活</span>' :
+                           code.status === 'activated' ? '<span class="badge badge-activated">已激活</span>' :
+                           '<span class="badge badge-disabled">已禁用</span>';
+        const typeName = code.cardType === 'D' ? '天卡' : code.cardType === 'Y' ? '年卡' : '月卡';
+        const createdAt = code.createdAt ? new Date(code.createdAt).toLocaleString() : '-';
+        html += `<tr>
+          <td><code>${code.code}</code></td>
+          <td>${typeName}</td>
+          <td>${statusBadge}</td>
+          <td>${createdAt}</td>
+          <td>
+            <button class="btn-warning" style="padding:4px 10px;font-size:12px" onclick="quickUnbind('${code.code}')">解绑</button>
+            ${code.status === 'disabled' ?
+              `<button class="btn-success" style="padding:4px 10px;font-size:12px" onclick="quickEnable('${code.code}')">启用</button>` :
+              `<button class="btn-danger" style="padding:4px 10px;font-size:12px" onclick="quickDisable('${code.code}')">禁用</button>`
+            }
+          </td>
+        </tr>`;
+      }
+      html += '</tbody></table>';
+      document.getElementById('listContainer').innerHTML = html;
+
+      // 分页
+      let pagHtml = `<button class="btn-info" onclick="loadCodes(${Math.max(1, currentPage - 1)})" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+      pagHtml += `<span>第 ${currentPage} / ${totalPages} 页（共 ${data.total} 条）</span>`;
+      pagHtml += `<button class="btn-info" onclick="loadCodes(${Math.min(totalPages, currentPage + 1)})" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+      document.getElementById('pagination').innerHTML = pagHtml;
+    } else {
+      document.getElementById('listContainer').innerHTML = '<p style="text-align:center;color:#888;padding:20px">' + (data.msg || '加载失败') + '</p>';
+    }
+  } catch (e) {
+    document.getElementById('listContainer').innerHTML = '<p style="text-align:center;color:red;padding:20px">网络错误：' + e.message + '</p>';
+  } finally {
+    showLoading('listLoading', false);
+  }
+}
+
+async function quickUnbind(code) {
+  if (!confirm('确定要解绑激活码 ' + code + ' 吗？解绑后用户可在新设备重新激活，保留剩余时间。')) return;
+  document.getElementById('singleCode').value = code;
+  await unbindCode();
+  loadCodes(currentPage);
+}
+
+async function quickDisable(code) {
+  if (!confirm('确定要禁用激活码 ' + code + ' 吗？禁用后用户无法使用。')) return;
+  document.getElementById('singleCode').value = code;
+  await disableCode();
+  loadCodes(currentPage);
+}
+
+async function quickEnable(code) {
+  if (!confirm('确定要启用激活码 ' + code + ' 吗？')) return;
+  document.getElementById('singleCode').value = code;
+  await enableCode();
+  loadCodes(currentPage);
+}
+
+// ========== 单个操作 ==========
+async function queryCode() {
+  const serverUrl = document.getElementById('serverUrl2').value.trim().replace(/\/$/, '');
+  const code = document.getElementById('singleCode').value.trim();
+  if (!code) { alert('请输入激活码'); return; }
+  showLoading('singleLoading', true);
+  try {
+    const res = await fetch(serverUrl + '/status/' + encodeURIComponent(code));
+    const data = await res.json();
+    if (data.ok) {
+      showResult('singleResult', 'info', '查询成功', data);
+    } else {
+      showResult('singleResult', 'error', data.msg || '查询失败', data);
+    }
+  } catch (e) {
+    showResult('singleResult', 'error', '网络错误：' + e.message);
+  } finally {
+    showLoading('singleLoading', false);
+  }
+}
+
+async function unbindCode() {
+  const serverUrl = document.getElementById('serverUrl2').value.trim().replace(/\/$/, '');
+  const password = document.getElementById('adminPassword2').value;
+  const code = document.getElementById('singleCode').value.trim();
+  if (!code) { alert('请输入激活码'); return; }
+  if (!confirm('确定要解绑激活码 ' + code + ' 吗？解绑后用户可在新设备重新激活，保留剩余时间。')) return;
+  showLoading('singleLoading', true);
+  try {
+    const res = await fetch(serverUrl + '/admin/unbind', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, password })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showResult('singleResult', 'success', data.msg, data);
+    } else {
+      showResult('singleResult', 'error', data.msg || '解绑失败', data);
+    }
+  } catch (e) {
+    showResult('singleResult', 'error', '网络错误：' + e.message);
+  } finally {
+    showLoading('singleLoading', false);
+  }
+}
+
+async function disableCode() {
+  const serverUrl = document.getElementById('serverUrl2').value.trim().replace(/\/$/, '');
+  const password = document.getElementById('adminPassword2').value;
+  const code = document.getElementById('singleCode').value.trim();
+  if (!code) { alert('请输入激活码'); return; }
+  if (!confirm('确定要禁用激活码 ' + code + ' 吗？禁用后用户无法使用。')) return;
+  showLoading('singleLoading', true);
+  try {
+    const res = await fetch(serverUrl + '/admin/disable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, password })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showResult('singleResult', 'success', data.msg, data);
+    } else {
+      showResult('singleResult', 'error', data.msg || '禁用失败', data);
+    }
+  } catch (e) {
+    showResult('singleResult', 'error', '网络错误：' + e.message);
+  } finally {
+    showLoading('singleLoading', false);
+  }
+}
+
+async function enableCode() {
+  const serverUrl = document.getElementById('serverUrl2').value.trim().replace(/\/$/, '');
+  const password = document.getElementById('adminPassword2').value;
+  const code = document.getElementById('singleCode').value.trim();
+  if (!code) { alert('请输入激活码'); return; }
+  showLoading('singleLoading', true);
+  try {
+    const res = await fetch(serverUrl + '/admin/enable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, password })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showResult('singleResult', 'success', data.msg, data);
+    } else {
+      showResult('singleResult', 'error', data.msg || '启用失败', data);
+    }
+  } catch (e) {
+    showResult('singleResult', 'error', '网络错误：' + e.message);
+  } finally {
+    showLoading('singleLoading', false);
+  }
+}
+
+// 页面加载时加载数据
+window.onload = function() {
+  loadStats();
+};
+</script>
+</body>
+</html>
