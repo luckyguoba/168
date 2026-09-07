@@ -219,7 +219,6 @@ export async function onRequest(context) {
           expireAt: licenses[code].activatedAt + useDays * 24 * 3600 * 1000,
           days: useDays
         });
-        });
       }
     } catch (e) {
       console.error('[激活错误]', e.message);
