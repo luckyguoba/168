@@ -336,10 +336,11 @@ export async function onRequest(context) {
     }
   }
 
-  // ========== 管理接口：修复数据同步（把 licenses 中的激活码同步到 codes）==========
-  if (path === '/admin/fix-sync' && request.method === 'POST') {
+  // ========== 管理接口：修复数据同步（支持 GET 和 POST，GET 可直接在浏览器地址栏访问）==========
+  if (path === '/admin/fix-sync' && (request.method === 'POST' || request.method === 'GET')) {
     try {
-      const { password } = body;
+      // GET 从 URL 参数读取密码，POST 从 body 读取密码
+      const password = request.method === 'GET' ? url.searchParams.get('password') : (body.password || '');
       if (password !== ADMIN_PASSWORD) return jsonResponse({ ok: false, msg: '管理密码错误' }, 403);
 
       const codes = await redisGet(env, CODES_KEY) || {};
