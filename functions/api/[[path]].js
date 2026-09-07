@@ -53,14 +53,20 @@ async function redisGet(env, key) {
 
 async function redisSet(env, key, value) {
   try {
-    await fetch(`${env.UPSTASH_REDIS_REST_URL}/set/${key}`, {
+    // 使用 Upstash Redis 原生命令格式，更可靠
+    const res = await fetch(`${env.UPSTASH_REDIS_REST_URL}/`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${env.UPSTASH_REDIS_REST_TOKEN}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(value)
+      body: JSON.stringify(['SET', key, JSON.stringify(value)])
     });
+    const data = await res.json();
+    if (data && data.error) {
+      console.error('Redis SET 错误:', data.error);
+      return false;
+    }
     return true;
   } catch (e) {
     console.error('Redis SET 失败:', e.message);
@@ -159,14 +165,17 @@ export async function onRequest(context) {
         const lic = licenses[code];
         if (lic.deviceFingerprint === deviceFingerprint) {
           lic.activatedAt = Date.now();
-          if (days) lic.days = days;
+          // 忽略客户端传的 days，使用激活码本身的类型决定天数
+          const cardType = code.match(/^FGMM-([DMY])-/)[1];
+          lic.days = cardType === 'D' ? 1 : (cardType === 'Y' ? 365 : 30);
           delete lic.remainingDays;
           delete lic.unboundAt;
           await redisSet(env, LICENSES_KEY, licenses);
           return jsonResponse({
             ok: true, msg: '激活成功（同一设备续期）',
             activatedAt: lic.activatedAt,
-            expireAt: lic.activatedAt + (lic.days || 30) * 24 * 3600 * 1000
+            expireAt: lic.activatedAt + lic.days * 24 * 3600 * 1000,
+            days: lic.days
           });
         } else if (lic.deviceFingerprint === null || lic.deviceFingerprint === undefined) {
           const remainingDays = lic.remainingDays || lic.days || 30;
@@ -180,7 +189,8 @@ export async function onRequest(context) {
             ok: true, msg: `激活成功（更换设备，剩余${remainingDays}天）`,
             activatedAt: lic.activatedAt,
             expireAt: lic.activatedAt + remainingDays * 24 * 3600 * 1000,
-            remainingDays
+            remainingDays,
+            days: remainingDays
           });
         } else {
           return jsonResponse({ ok: false, msg: '该激活码已绑定其他设备，无法在本设备使用。如需更换设备请联系客服解绑。' }, 403);
@@ -190,8 +200,8 @@ export async function onRequest(context) {
           return jsonResponse({ ok: false, msg: '激活码状态异常，请联系客服' }, 403);
         }
         const cardType = code.match(/^FGMM-([DMY])-/)[1];
-        const cardDays = cardType === 'D' ? 1 : (cardType === 'Y' ? 365 : 30);
-        const useDays = days || cardDays;
+        // 忽略客户端传的 days，直接使用激活码类型对应的天数：D=1天, M=30天, Y=365天
+        const useDays = cardType === 'D' ? 1 : (cardType === 'Y' ? 365 : 30);
 
         licenses[code] = {
           deviceFingerprint, activatedAt: Date.now(), days: useDays, firstActivatedAt: Date.now()
@@ -206,7 +216,9 @@ export async function onRequest(context) {
         return jsonResponse({
           ok: true, msg: '激活成功',
           activatedAt: licenses[code].activatedAt,
-          expireAt: licenses[code].activatedAt + useDays * 24 * 3600 * 1000
+          expireAt: licenses[code].activatedAt + useDays * 24 * 3600 * 1000,
+          days: useDays
+        });
         });
       }
     } catch (e) {
@@ -275,14 +287,86 @@ export async function onRequest(context) {
       if (password !== ADMIN_PASSWORD) return jsonResponse({ ok: false, msg: '管理密码错误' }, 403);
 
       const codes = await redisGet(env, CODES_KEY) || {};
-      let codeList = Object.entries(codes).map(([code, info]) => ({ code, ...info }));
+      const licenses = await redisGet(env, LICENSES_KEY) || {};
+
+      // 合并 codes 和 licenses，确保在 licenses 中但不在 codes 中的激活码也能显示
+      const merged = {};
+      for (const [code, info] of Object.entries(codes)) {
+        merged[code] = { ...info, code };
+      }
+      for (const [code, lic] of Object.entries(licenses)) {
+        if (!merged[code]) {
+          // 在 licenses 中但不在 codes 中，自动添加到 merged
+          const cardType = code.match(/^FGMM-([DMY])-/) ? code.match(/^FGMM-([DMY])-/)[1] : 'M';
+          merged[code] = {
+            code,
+            status: lic.deviceFingerprint ? 'activated' : 'unused',
+            cardType,
+            createdAt: lic.firstActivatedAt || lic.activatedAt || Date.now(),
+            activatedAt: lic.activatedAt,
+            deviceFingerprint: lic.deviceFingerprint,
+            _fromLicenses: true
+          };
+        } else if (lic.deviceFingerprint && merged[code].status !== 'activated') {
+          // codes 中状态不对，用 licenses 的状态修正
+          merged[code].status = 'activated';
+          merged[code].activatedAt = lic.activatedAt;
+          merged[code].deviceFingerprint = lic.deviceFingerprint;
+        }
+      }
+
+      let codeList = Object.values(merged);
       if (status) codeList = codeList.filter(c => c.status === status);
-      codeList.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      codeList.sort((a, b) => (b.activatedAt || b.createdAt || 0) - (a.activatedAt || a.createdAt || 0));
       const total = codeList.length;
       const totalPages = Math.ceil(total / pageSize);
       const start = (page - 1) * pageSize;
       const pageData = codeList.slice(start, start + pageSize);
       return jsonResponse({ ok: true, total, page, pageSize, totalPages, codes: pageData });
+    } catch (e) {
+      return jsonResponse({ ok: false, msg: '服务器错误: ' + e.message }, 500);
+    }
+  }
+
+  // ========== 管理接口：修复数据同步（把 licenses 中的激活码同步到 codes）==========
+  if (path === '/admin/fix-sync' && request.method === 'POST') {
+    try {
+      const { password } = body;
+      if (password !== ADMIN_PASSWORD) return jsonResponse({ ok: false, msg: '管理密码错误' }, 403);
+
+      const codes = await redisGet(env, CODES_KEY) || {};
+      const licenses = await redisGet(env, LICENSES_KEY) || {};
+      let fixed = 0;
+
+      for (const [code, lic] of Object.entries(licenses)) {
+        if (!codes[code]) {
+          // 在 licenses 中但不在 codes 中，添加到 codes
+          const cardType = code.match(/^FGMM-([DMY])-/) ? code.match(/^FGMM-([DMY])-/)[1] : 'M';
+          codes[code] = {
+            status: lic.deviceFingerprint ? 'activated' : 'unused',
+            cardType,
+            createdAt: lic.firstActivatedAt || lic.activatedAt || Date.now(),
+            activatedAt: lic.activatedAt,
+            deviceFingerprint: lic.deviceFingerprint
+          };
+          fixed++;
+        } else if (lic.deviceFingerprint && codes[code].status !== 'activated') {
+          // 状态不对，修正
+          codes[code].status = 'activated';
+          codes[code].activatedAt = lic.activatedAt;
+          codes[code].deviceFingerprint = lic.deviceFingerprint;
+          fixed++;
+        }
+      }
+
+      await redisSet(env, CODES_KEY, codes);
+      return jsonResponse({
+        ok: true,
+        msg: `数据同步修复完成，修复了 ${fixed} 个激活码`,
+        fixed,
+        totalCodes: Object.keys(codes).length,
+        totalLicenses: Object.keys(licenses).length
+      });
     } catch (e) {
       return jsonResponse({ ok: false, msg: '服务器错误: ' + e.message }, 500);
     }
