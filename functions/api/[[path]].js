@@ -104,14 +104,23 @@ export async function onRequest(context) {
     const licenses = await redisGet(env, LICENSES_KEY) || {};
     const codes = await redisGet(env, CODES_KEY) || {};
     const unusedCount = Object.values(codes).filter(c => c.status === 'unused').length;
-    const activatedCount = Object.values(codes).filter(c => c.status === 'activated').length;
+    let activatedCount = Object.values(codes).filter(c => c.status === 'activated').length;
     const disabledCount = Object.values(codes).filter(c => c.status === 'disabled').length;
+    // 加上在 licenses 中但不在 codes 中的已激活激活码（确保统计完整）
+    let extraActivated = 0;
+    for (const [code, lic] of Object.entries(licenses)) {
+      if (!codes[code] && lic.deviceFingerprint) {
+        extraActivated++;
+      }
+    }
+    activatedCount += extraActivated;
+    const totalCodes = Object.keys(codes).length + extraActivated;
     return jsonResponse({
       ok: true,
       msg: '橙果漫剧授权服务器运行中（Cloudflare Pages Functions 版）',
       storage: 'Upstash Redis',
       stats: {
-        totalCodes: Object.keys(codes).length,
+        totalCodes,
         unused: unusedCount,
         activated: activatedCount,
         disabled: disabledCount,
